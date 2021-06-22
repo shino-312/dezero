@@ -2,8 +2,17 @@
 
 import numpy as np
 
+def as_array(x):
+    if np.isscalar(x):
+        return np.array(x)
+    return x
+
 class Variable():
     def __init__(self, data):
+        if data is not None:
+            if not isinstance(data, np.ndarray):
+                raise TypeError('{} is un-supported type'.format(type(data)))
+
         self.data = data
         self.grad = None
         self.creator = None
@@ -12,6 +21,9 @@ class Variable():
         self.creator = func
 
     def backward(self):
+        if self.grad is None:
+            self.grad = np.ones_like(self.data)
+
         funcs = [self.creator]
         while funcs:
             f = funcs.pop()
@@ -27,7 +39,7 @@ class Function():
         x = in_var.data
         y = self.forward(x)
         self.in_var = in_var
-        out_var = Variable(y)
+        out_var = Variable(as_array(y))
         out_var.set_creator(self)
         self.out_var = out_var
 
@@ -70,25 +82,17 @@ def numerical_diff(func, x, eps=1e-4):
     y1 = func(x1)
     return (y1.data - y0.data) / (2*eps)
 
+def square(x):
+    return Square()(x)
+
+def exp(x):
+    return Exp()(x)
 
 if __name__ == '__main__':
 
-    def f(x):
-        A = Square()
-        B = Exp()
-        C = Square()
-        return C(B(A(x)))
-
     x = Variable(np.array(0.5))
-    y = f(x)
+    y = square(exp(square(x)))
 
-    print(y.data)
-
-    dy = numerical_diff(f, x)
-
-    print('dy by forward:  ', dy)
-
-    y.grad = np.array(1.0)
     y.backward()
 
     print('dy by backward: ', x.grad)
